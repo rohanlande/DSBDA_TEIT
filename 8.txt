@@ -1,0 +1,51 @@
+
+
+create table :
+	
+hive> CREATE TABLE online_retail ( InvoiceNo STRING, StockCode STRING,Description STRING, Quantity INT,InvoiceDate STRING,UnitPrice FLOAT,CustomerID STRING,Country STRING)
+    > ROW FORMAT DELIMITED
+    > FIELDS TERMINATED BY ','
+    > LINES TERMINATED BY '\n'
+    > STORED AS TEXTFILE;
+
+
+load data into table from local storage:
+
+[cloudera@quickstart ~]$ hadoop fs -put /home/cloudera/Desktop/OnlineRetail.csv /user/hive/warehouse/
+
+hive> LOAD DATA INPATH 'hdfs://quickstart.cloudera:8020/user/hive/warehouse/OnlineRetail.csv' INTO TABLE online_retail;
+
+Q - J :
+	
+CREATE INDEX customer_idx ON TABLE online_retail(CustomerID) AS 'COMPACT' WITH DEFERRED REBUILD;
+
+ALTER INDEX customer_idx ON online_retail REBUILD;
+
+Q - K : Find the total, average sales in Hive
+
+hive> select SUM(quantity*unitprice) as total_sale from online_retail;
+hive> select avg(quantity*unitprice) as total_sale from online_retail;
+
+Q - L : Find Order details with maximum cost.
+	hive> select * from online_retail
+    > order by quantity*unitprice desc
+    > limit 1;
+
+Q - M : Find Customer details with maximum order total.
+	hive> select customerid ,sum(quantity*unitprice) as cst from online_retail
+    > group by customerid
+    > order by cst desc
+    > limit 1;
+
+Q - N : Find the Country with maximum and minimum sale.
+	hive> select country , sum(quantity*unitprice) as cst from online_retail 
+    > group by country
+    > order by cst desc
+    > limit 1;
+
+Q - O : Creating an external Hive table to connect to the HBase for OnlineRetail.
+
+hive> CREATE EXTERNAL TABLE online_retail_ ( InvoiceNo STRING,StockCode STRING,Description STRING,Quantity INT,InvoiceDate STRING,UnitPrice FLOAT,CustomerID STRING,Country STRING)
+    > STORED BY 'org.apache.hadoop.hive.hbase.HBaseStorageHandler'
+    > WITH SERDEPROPERTIES ("hbase.columns.mapping" = ":key,cc:StockCode,cc:Description,cc:Quantity,cc:InvoiceDate,cc:UnitPrice,cc:CustomerID,cc:Country")
+    > TBLPROPERTIES("hbase.table.name" = "online_retail_");
